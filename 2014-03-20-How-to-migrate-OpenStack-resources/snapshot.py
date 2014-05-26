@@ -75,7 +75,9 @@ class ResourcePrinter(object):
                                          'Size', 'Key Pair',
                                          'Network'])
         for server in self.nova.server_list():
-            image_name = self.glance.image_get(server.image['id']).name
+            image_name = str()
+            if any(server.image):
+                image_name = self.glance.image_get(server.image['id']).name
             flavor = self.nova.flavor_get(server.flavor['id'])
             networks = self.format_networks(server.addresses)
 
@@ -216,7 +218,8 @@ class ResourcePrinter(object):
             row.append(router['id'])
             row.append(router['name'])
             external = router['external_gateway_info']
-            if external is not None:
+            external_network_id = external['network_id']
+            if external is not None and external_network_id in networks:
                 row.append('%s:%s' % (networks[external['network_id']],
                                       external['network_id']))
             else:
