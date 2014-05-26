@@ -24,6 +24,7 @@
 
 import argparse
 import logging
+import os
 import prettytable
 
 from cinderclient.v1 import client as cinder_client
@@ -254,10 +255,11 @@ class ResourcePrinter(object):
 class KeystoneManager(object):
     """Manages Keystone queries"""
 
-    def __init__(self, username, password, project, auth_url):
+    def __init__(self, username, password, project, auth_url, insecure):
         self.client = keystone_client.Client(
             username=username, password=password,
-            tenant_name=project, auth_url=auth_url)
+            tenant_name=project, auth_url=auth_url,
+            insecure=insecure)
 
     def get_token(self):
         return self.client.auth_token
@@ -273,8 +275,9 @@ class KeystoneManager(object):
 class NovaManager(object):
     """Manage nova resources"""
 
-    def __init__(self, username, password, project, auth_url):
-        self.client = nova_client.Client(username, password, project, auth_url)
+    def __init__(self, username, password, project, auth_url, insecure):
+        self.client = nova_client.Client(username, password, project,
+                                         auth_url, insecure=insecure)
 
     def server_list(self):
         return self.client.servers.list()
@@ -295,11 +298,12 @@ class NovaManager(object):
 class CinderManager(object):
     """Manage Cinder resources"""
 
-    def __init__(self, username, password, project, auth_url):
+    def __init__(self, username, password, project, auth_url, insecure):
         self.client = cinder_client.Client(username,
                                            password,
                                            project,
-                                           auth_url)
+                                           auth_url,
+                                           insecure=insecure)
 
     def volume_list(self):
         return self.client.volumes.list()
@@ -311,14 +315,16 @@ class CinderManager(object):
 class GlanceManager(object):
     """Manage Glance resources"""
 
-    def __init__(self, username, password, project, auth_url):
+    def __init__(self, username, password, project, auth_url, insecure):
         keystone_mgr = KeystoneManager(username,
                                        password,
                                        project,
-                                       auth_url)
+                                       auth_url,
+                                       insecure=insecure)
         self.client = glance_client.Client(
             endpoint=keystone_mgr.get_endpoint("image"),
-            token=keystone_mgr.get_token())
+            token=keystone_mgr.get_token(),
+            insecure=insecure)
         self.project_id = keystone_mgr.get_project_id()
 
     def image_list(self, owner=None, is_public=None):
@@ -332,11 +338,11 @@ class GlanceManager(object):
 
 
 class NeutronManager(object):
-    def __init__(self, username, password, project, auth_url):
+    def __init__(self, username, password, project, auth_url, insecure):
         self.client = neutron_client.Client(
             username=username, password=password,
-            tenant_name=project, auth_url=auth_url)
-        keystone_mgr = KeystoneManager(username, password, project, auth_url)
+            tenant_name=project, auth_url=auth_url, insecure=insecure)
+        keystone_mgr = KeystoneManager(username, password, project, auth_url, insecure)
         self.project_id = keystone_mgr.get_project_id()
 
     def router_list(self):
@@ -371,10 +377,17 @@ def main():
                         help="Name of project")
     parser.add_argument("auth_url", type=str, nargs=1,
                         help="Authentication URL")
+    parser.add_argument('--insecure', action='store_true',
+                        default=os.environ.get('NOVACLIENT_INSECURE', False),
+                        help="Explicitly allow clients to perform "
+                        "\"insecure\" SSL (https) requests. The "
+                        "server's certificate will not be verified "
+                        "against any certificate authorities. This "
+                        "option should be used with caution.")
     args = parser.parse_args()
     os_creds = (args.username[0], args.password[0],
-                args.project[0], args.auth_url[0])
-
+                args.project[0], args.auth_url[0],
+                args.insecure)
     ResourcePrinter(*os_creds).run()
 
 if __name__ == "__main__":

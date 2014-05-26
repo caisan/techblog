@@ -35,6 +35,10 @@ Available options can be displayed by using `snapshot.py -h`:
 
     optional arguments:
     -h, --help  show this help message and exit
+    --insecure  Explicitly allow clients to perform "insecure" SSL (https)
+                requests. The server's certificate will not be verified against
+                any certificate authorities. This option should be used with
+                caution.
 
 Example
 -------
